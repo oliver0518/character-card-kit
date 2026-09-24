@@ -8,5 +8,13 @@ output/
 assets/
 examples/out/
 
+# 组装中间产物（compose 会写回分件目录，可随时再生成）
+*_统一刻度.png
+*_三视图_刻度.png
+*_微表情表.png
+*_微表情.png
+*_服饰图鉴.png
+*_装备图鉴.png
+
 # 系统杂项
 .DS_Store
