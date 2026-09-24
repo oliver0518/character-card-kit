@@ -136,10 +136,11 @@ def compose_one(name: str, cfg: dict) -> Path:
     expr = caption_grid(parts / cfg["expr"], cfg["expr_names"],
                         grid=cfg.get("expr_grid", (3, 2)))
     expr.save(parts / f"{name_prefix}_微表情表.png")
-    acc = caption_grid(parts / cfg["acc"], cfg["acc_names"],
-                       grid=cfg.get("acc_grid", (3, 2)))
+    # 服饰/装备六格：不叠印逐格名牌（AI 网格无法像素对齐，名牌必错位；
+    # 且格上文字会被下游 AI 生图误读）。仅用角部底色填充修补右下水印。
+    acc = fill_wm(Image.open(parts / cfg["acc"]).convert("RGB"))
     acc.save(parts / f"{name_prefix}_服饰图鉴.png")
-    eq = caption_grid(parts / cfg["eq"], cfg["eq_names"])
+    eq = fill_wm(Image.open(parts / cfg["eq"]).convert("RGB"))
     eq.save(parts / f"{name_prefix}_装备图鉴.png")
 
     rows: list[Image.Image] = []

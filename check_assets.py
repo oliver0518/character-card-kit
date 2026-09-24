@@ -21,10 +21,10 @@ from cardlib import load_characters
 REQUIRED_FULL = ["parts", "out", "bust", "turn", "expr", "acc", "eq",
                  "title", "subtitle", "info_pairs", "info_full", "traits",
                  "ability", "background", "world", "palette",
-                 "acc_names", "eq_names", "eq_notes", "expr_names", "cm_height"]
+                 "eq_notes", "expr_names", "cm_height"]
 REQUIRED_Q = ["parts", "out", "bust", "turn", "expr", "acc", "eq",
               "title", "subtitle", "turn_front_x", "info_pairs", "traits",
-              "palette", "acc_names", "eq_names", "eq_notes", "expr_names",
+              "palette", "eq_notes", "expr_names",
               "cm_height"]
 
 errors: list[str] = []
@@ -47,14 +47,12 @@ def check_cfg(name: str, cfg: dict, required: list[str], card_type: str):
         f = parts / cfg[key] if key in cfg else None
         if f is not None and not Path(f).exists():
             err(f"缺分件源图: {f}")
-    # 网格与名牌数量
-    for names_key, grid_key in (("expr_names", "expr_grid"),
-                                ("acc_names", "acc_grid"),
-                                ("eq_names", None)):
+    # 网格与名牌数量（服饰/装备六格不叠名牌，无需校验名单）
+    for names_key, grid_key in (("expr_names", "expr_grid"),):
         names = cfg.get(names_key)
         if names is None:
             continue
-        grid = cfg.get(grid_key, (3, 2)) if grid_key else (3, 2)
+        grid = cfg.get(grid_key, (3, 2))
         if len(names) != grid[0] * grid[1]:
             err(f"{names_key} 数量 {len(names)} ≠ 网格 {grid[0]}×{grid[1]} = {grid[0]*grid[1]}")
     palette = cfg.get("palette")

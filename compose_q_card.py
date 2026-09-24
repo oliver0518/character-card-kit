@@ -85,10 +85,10 @@ def compose_one(name: str, cfg: dict) -> Image.Image:
     expr = caption_grid(parts / cfg["expr"], cfg["expr_names"],
                         grid=cfg.get("expr_grid", (3, 2)))
     expr.save(parts / f"{name_prefix}_Q版微表情.png")
-    acc = caption_grid(parts / cfg["acc"], cfg["acc_names"],
-                       grid=cfg.get("acc_grid", (3, 2)))
+    # 服饰/装备六格不叠名牌（同写实卡）；微表情保留逐格名牌
+    acc = fill_wm(Image.open(parts / cfg["acc"]).convert("RGB"))
     acc.save(parts / f"{name_prefix}_Q版服饰图鉴.png")
-    eq = caption_grid(parts / cfg["eq"], cfg["eq_names"])
+    eq = fill_wm(Image.open(parts / cfg["eq"]).convert("RGB"))
     eq.save(parts / f"{name_prefix}_Q版装备图鉴.png")
 
     rows: list[Image.Image] = []
