@@ -13,29 +13,25 @@
 
 ## 产出效果
 
-仓库自带**两套完整示例**（分件源图都在 `examples/` 里，克隆后即可一键复现）：
+仓库自带**一套完整示例**（10 张分件源图都在 `examples/清衡_分件/`，克隆后即可一键复现）：
 
-**示例 A · 原创示例角色**（素白劲装女剑客，photoreal cinematic 3D）：
+**写实完整卡**（photoreal cinematic 3D）：
 
 <p align="center">
   <img src="docs/example_card.jpg" width="560" alt="写实完整人物卡示例">
 </p>
+
+**Q 版人物卡**（同套设定的 Q 版独立卡）：
+
 <p align="center">
   <img src="docs/example_q_card.jpg" width="560" alt="Q版人物卡示例">
 </p>
 
-**示例 B · 清衡**（出自作者作品《凡人修仙外传》，演示三视图/主肖像水印压在人物与地面渐变上时的修补口径 `turn_wm="stretch"` / `bust_wm="copy"`）：
-
-<p align="center">
-  <img src="docs/example_qingheng_card.jpg" width="560" alt="清衡写实完整人物卡">
-</p>
-<p align="center">
-  <img src="docs/example_qingheng_q_card.jpg" width="560" alt="清衡Q版人物卡">
-</p>
-
-卡片结构（2048 宽，从上到下）：
+卡片结构（2048 宽，从上到下）：**标题条 → 主肖像 ｜ 角色信息栏 → 人物背景 ｜ 世界观 → 统一刻度三视图 ｜ 微表情六态 → 服饰六格 ｜ 装备六格（带注记）→ 六色基准色板 → 底注条**。
 
 Q 版卡结构相同，全部板块 Q 版化。
+
+示例本身也顺带演示了水印修补口径：清衡这版的三视图水印压在人物与地面渐变上，用 `turn_wm="stretch"` / `turn_patch_span=(0.30, 0.39)`，主肖像压在人物上，用 `bust_wm="copy"`。
 
 ## 快速开始
 
@@ -81,11 +77,11 @@ cp characters.example.py characters.py
 
 ```bash
 python check_assets.py                  # 可选：提前发现缺图/字段错误
-python compose_full_card.py 示例角色     # 产出写实完整卡
-python compose_q_card.py   示例角色     # 产出 Q 版卡
+python compose_full_card.py 清衡        # 产出写实完整卡
+python compose_q_card.py   清衡         # 产出 Q 版卡
 ```
 
-克隆本仓库后**无需任何生图即可复现示例**：`cp characters.example.py characters.py` 后直接跑（缺省组装配置里的全部角色，含两套示例）；成品 PNG 写到配置里的 `out` 路径，带刻度线和名牌的分件中间产物落回分件目录，可复用。
+克隆本仓库后**无需任何生图即可复现示例**：`cp characters.example.py characters.py` 后直接跑（不带参数就组装配置里的全部角色）；成品 PNG 写到配置里的 `out` 路径，带刻度线和名牌的分件中间产物落回分件目录，可复用。
 
 ## 作为 AI 助手 Skill 安装
 
@@ -141,8 +137,8 @@ character-card-kit/
 ├── compose_full_card.py    # 写实完整卡组装
 ├── compose_q_card.py       # Q 版卡组装
 ├── check_assets.py         # 配置与资产体检
-├── characters.example.py   # 角色配置示例（两套示例角色，复制为 characters.py 使用）
-├── examples/               # 两套示例的 10 张分件源图（克隆即可复现）
+├── characters.example.py   # 角色配置示例（复制为 characters.py 使用）
+├── examples/               # 示例人物的 10 张分件源图（克隆即可复现）
 ├── docs/                   # 示例成品卡（README 展示用）
 ├── SKILL.md                # AI 助手 skill（生图提示词模板 + 全流程）
 ├── requirements.txt
