@@ -1,0 +1,207 @@
+#!/usr/bin/env python3
+"""Q 版人物卡组装引擎（独立成卡，不叠加在写实卡上）。
+
+规则：
+  - 与写实完整卡同一套设定（服饰/装备/性格/微表情），仅画风 Q 版化
+  - 统一刻度三视图（cm 线）+ 六态微表情 + 服饰六格 + 装备六格，逐格名牌
+  - Q 版一般仅用于搞笑小嵌格，正片一律用写实卡
+
+用法：
+  python compose_q_card.py 角色名 [--config characters.py]
+
+角色配置放在 characters.py 的 Q_CHARS 字典（参考 characters.example.py）。
+"""
+from __future__ import annotations
+
+import argparse
+
+from PIL import Image, ImageDraw, ImageFilter
+
+from cardlib import (
+    W, EDGE, GAP, BG, PANEL, INK, MUTED, ACCENT, LINE, BAND, CREAM,
+    font, fill_wm, fit_width, fit_box_pad, _wrap,
+    detect_figure_span, caption_grid, section_label, chip_row,
+    load_characters, _draw_scale_lines,
+)
+
+
+def build_turn_q(src, cm_height: int, fx: tuple[int, int]) -> Image.Image:
+    """Q 版三视图统一刻度（正面位于 fx 指定的 x 区间）。"""
+    im = fill_wm(Image.open(src).convert("RGB"))
+    base, top = detect_figure_span(im, fx[0], fx[1], ref=None)
+    return _draw_scale_lines(im, base, top, cm_height)
+
+
+def build_info_panel(w: int, h: int, cfg: dict) -> Image.Image:
+    panel = Image.new("RGB", (w, h), PANEL)
+    d = ImageDraw.Draw(panel)
+    d.rectangle([0, 0, 6, h], fill=ACCENT)
+    pad = 26
+    d.text((pad, 18), "角色信息", fill=ACCENT, font=font(38, True))
+    y = 72
+    d.line([(pad, y), (w - pad, y)], fill=LINE, width=2)
+    y += 14
+    key_f, val_f = font(25), font(27)
+    for k, v in cfg["info_pairs"]:
+        d.text((pad, y), k, fill=MUTED, font=key_f)
+        d.text((pad + 120, y - 2), v, fill=INK, font=val_f)
+        y += 38
+    y += 8
+    d.line([(pad, y), (w - pad, y)], fill=LINE, width=2)
+    y += 14
+    d.text((pad, y), "性格六态", fill=ACCENT, font=font(28, True))
+    y = chip_row(d, pad + 150, y - 2, cfg["traits"], font(24))
+    d.line([(pad, y), (w - pad, y)], fill=LINE, width=2)
+    y += 14
+    d.text((pad, y), "色彩基准", fill=ACCENT, font=font(28, True))
+    y += 42
+    n = len(cfg["palette"])
+    sw = min(72, (w - pad * 2 - (n - 1) * 12) // n)
+    for i, (hexv, rgb) in enumerate(cfg["palette"]):
+        x = pad + i * (sw + 12)
+        d.ellipse([x, y, x + sw, y + sw], fill=rgb, outline=LINE, width=2)
+        hb = d.textbbox((0, 0), hexv, font=font(17))
+        d.text((x + (sw - (hb[2] - hb[0])) // 2, y + sw + 4), hexv, fill=MUTED, font=font(17))
+    y += sw + 36
+    usage = cfg.get(
+        "usage_note",
+        "Q 版仅用于搞笑小嵌格；正片一律用写实卡。锁脸仍以写实卡为准，Q 版不得反写设定。")
+    for line in _wrap(d, usage, font(24), w - pad * 2):
+        if y > h - 36:
+            break
+        d.text((pad, y), line, fill=MUTED, font=font(24))
+        y += 32
+    return panel
+
+
+def compose_one(name: str, cfg: dict) -> Image.Image:
+    from pathlib import Path
+    parts: Path = cfg["parts"]
+    name_prefix = cfg.get("prefix", name)
+
+    bust = fill_wm(Image.open(parts / cfg["bust"]).convert("RGB"))
+    turn = build_turn_q(parts / cfg["turn"], cfg["cm_height"], cfg["turn_front_x"])
+    turn.save(parts / f"{name_prefix}_Q版三视图_刻度.png")
+    expr = caption_grid(parts / cfg["expr"], cfg["expr_names"],
+                        grid=cfg.get("expr_grid", (3, 2)))
+    expr.save(parts / f"{name_prefix}_Q版微表情.png")
+    acc = caption_grid(parts / cfg["acc"], cfg["acc_names"],
+                       grid=cfg.get("acc_grid", (3, 2)))
+    acc.save(parts / f"{name_prefix}_Q版服饰图鉴.png")
+    eq = caption_grid(parts / cfg["eq"], cfg["eq_names"])
+    eq.save(parts / f"{name_prefix}_Q版装备图鉴.png")
+
+    rows: list[Image.Image] = []
+
+    # 标题条
+    th_ = 88
+    title = Image.new("RGB", (W, th_), BAND)
+    td = ImageDraw.Draw(title)
+    td.text((EDGE, 14), cfg["title"], fill=CREAM, font=font(46, True))
+    tb = td.textbbox((0, 0), cfg["subtitle"], font=font(28))
+    td.text((W - EDGE - (tb[2] - tb[0]), 32), cfg["subtitle"],
+            fill=(200, 214, 218), font=font(28))
+    rows.append(title)
+
+    # Row1: Q版主肖像 | 角色信息
+    bust_w = 620
+    bust_img = fit_width(bust, bust_w)
+    info_w = W - EDGE * 2 - GAP - bust_w
+    row1_h = bust_img.height
+    info = build_info_panel(info_w, row1_h, cfg)
+    row1 = Image.new("RGB", (W, row1_h), BG)
+    row1.paste(bust_img, (EDGE, 0))
+    row1.paste(info, (EDGE + bust_w + GAP, 0))
+    rows.append(row1)
+
+    # Row2: Q版三视图统一刻度 | Q版微表情六态
+    turn_w = 953
+    expr_w = W - EDGE * 2 - GAP - turn_w
+    turn_img = fit_width(turn, turn_w)
+    expr_img = fit_width(expr, expr_w)
+    body_h = min(turn_img.height, expr_img.height)
+    if turn_img.height > body_h:
+        turn_img = turn_img.resize((round(turn_w * body_h / turn_img.height), body_h),
+                                   Image.Resampling.LANCZOS)
+        turn_img = fit_box_pad(turn_img, turn_w, body_h)
+    if expr_img.height != body_h:
+        nw = max(1, round(expr_w * body_h / expr_img.height))
+        expr_img = expr_img.resize((nw, body_h), Image.Resampling.LANCZOS)
+        expr_img = fit_box_pad(expr_img, expr_w, body_h)
+    lab_t = section_label(f"Q版三视图 · 统一刻度（10cm/格 · 身高{cfg['cm_height']}cm）",
+                          turn_w, 48)
+    lab_e = section_label("Q版微表情 · 六态", expr_w, 48)
+    col_h = 48 + body_h
+    row2 = Image.new("RGB", (W, col_h), BG)
+    tc = Image.new("RGB", (turn_w, col_h), PANEL)
+    tc.paste(lab_t, (0, 0)); tc.paste(turn_img, (0, 48))
+    ec = Image.new("RGB", (expr_w, col_h), PANEL)
+    ec.paste(lab_e, (0, 0)); ec.paste(expr_img, (0, 48))
+    row2.paste(tc, (EDGE, 0))
+    row2.paste(ec, (EDGE + turn_w + GAP, 0))
+    rows.append(row2)
+
+    # Row3: Q版服饰六格 | Q版装备六格+注记
+    acc_w = 1090
+    eq_w = W - EDGE * 2 - GAP - acc_w
+    acc_img = fit_width(acc, acc_w)
+    eq_img = fit_width(eq, eq_w)
+    note_f = font(25)
+    note_h = 30 + len(cfg["eq_notes"]) * 40 + 16
+    body4 = max(acc_img.height, eq_img.height + note_h)
+    lab_a = section_label(cfg.get("acc_label", "Q版服饰 · 全套配件细节"), acc_w, 48)
+    lab_q = section_label(cfg.get("eq_label", "Q版装备"), eq_w, 48)
+    col4 = 48 + body4
+    row3 = Image.new("RGB", (W, col4), BG)
+    ac = Image.new("RGB", (acc_w, col4), PANEL)
+    ac.paste(lab_a, (0, 0)); ac.paste(acc_img, (0, 48))
+    ec2 = Image.new("RGB", (eq_w, col4), PANEL)
+    ec2.paste(lab_q, (0, 0)); ec2.paste(eq_img, (0, 48))
+    nd = ImageDraw.Draw(ec2)
+    ny = 48 + eq_img.height + 20
+    for note in cfg["eq_notes"]:
+        nd.text((20, ny), note, fill=INK, font=note_f)
+        ny += 40
+    row3.paste(ac, (EDGE, 0))
+    row3.paste(ec2, (EDGE + acc_w + GAP, 0))
+    rows.append(row3)
+
+    # 底注条
+    foot_h = 56
+    foot = Image.new("RGB", (W, foot_h), BG)
+    fd = ImageDraw.Draw(foot)
+    msg = cfg.get("foot", "Q版仅搞笑嵌格 · 正片用写实卡 ｜ 锁脸以写实卡为准")
+    fb = fd.textbbox((0, 0), msg, font=font(24))
+    fd.text(((W - (fb[2] - fb[0])) // 2, 16), msg, fill=MUTED, font=font(24))
+    rows.append(foot)
+
+    total_h = sum(r.height for r in rows) + EDGE
+    canvas = Image.new("RGB", (W, total_h), BG)
+    y = EDGE // 2
+    for r in rows:
+        canvas.paste(r, (0, y))
+        y += r.height
+    canvas = canvas.filter(ImageFilter.UnsharpMask(radius=1.0, percent=80, threshold=2))
+    out = cfg["out"]
+    out.parent.mkdir(parents=True, exist_ok=True)
+    canvas.save(out, "PNG", optimize=True)
+    print(f"{name}: {canvas.size} -> {out}")
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Q 版人物卡组装")
+    ap.add_argument("names", nargs="*", help="角色名（须已在配置中定义；缺省则组装全部）")
+    ap.add_argument("--config", default="characters.py", help="角色配置文件路径")
+    args = ap.parse_args()
+    chars = load_characters(args.config, "Q_CHARS")
+    names = args.names or list(chars.keys())
+    for n in names:
+        if n not in chars:
+            print(f"skip（配置中不存在）: {n}")
+            continue
+        compose_one(n, chars[n])
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,11 @@
+# 用户私有配置（含角色设定，按需自行决定是否入库）
+characters.py
+
+# 运行产物
+__pycache__/
+*.pyc
+output/
+assets/
+
+# 系统杂项
+.DS_Store
